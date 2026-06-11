@@ -1,0 +1,15 @@
+# Streamlit theme — "economic research" navy/slate/amber palette.
+# These settings replace Streamlit's default look app-wide (widgets, links,
+# focus rings, etc.). Chart colors live in app/theme.py so the same hex codes
+# are reused in every Plotly figure.
+
+[theme]
+base = "light"
+primaryColor = "#14365D"            # deep navy — buttons, links, accents
+backgroundColor = "#FAFBFC"         # off-white page background
+secondaryBackgroundColor = "#EEF1F5"  # cards, expanders, inputs — light slate
+textColor = "#1A2332"               # near-black navy-slate text
+font = "sans serif"
+
+[server]
+headless = true

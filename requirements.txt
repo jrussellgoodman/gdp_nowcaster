@@ -6,4 +6,5 @@ streamlit
 pytest
 pyarrow
 matplotlib
+plotly
 python-dotenv
