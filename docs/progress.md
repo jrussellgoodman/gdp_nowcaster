@@ -17,13 +17,18 @@ a step.
 - [x] Stationarity transformations applied and explained
 - [x] Mixed-frequency alignment (monthly panel + quarterly GDP) working
 - [x] pytest for data shapes/frequencies/sanity passes
-- [ ] Spot-checked values against fred.stlouisfed.org
+- [x] Spot-checked values against fred.stlouisfed.org
 
 ## Phase 2 — Baseline Model
-- [ ] AR(1) baseline model on GDPC1 growth
-- [ ] Single-factor DynamicFactorMQ model fits and converges (EM)
-- [ ] Produces a current-quarter GDP nowcast number
+- [x] AR(1) baseline model on GDPC1 growth
+- [x] Single-factor DynamicFactorMQ model fits and converges (EM)
+- [x] Produces a current-quarter GDP nowcast number
 - [ ] Sanity-checked against latest GDPNOW value
+
+## Phase 2 Results (2026-06-10)
+- AR(1): β = −0.13 (mild mean-reversion), long-run mean = 2.44%/yr, R² = 1.8%
+- DFM Q2 2026 nowcast: −0.33% annualized (vs AR(1) +2.55%)
+- Compare at: https://www.atlantafed.org/cprcd/macroeconomic-research/gdpnow
 
 ## Phase 3 — Full DFM + News Decomposition
 - [ ] Multi-factor / blocked DFM implemented

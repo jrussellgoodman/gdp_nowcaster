@@ -184,10 +184,21 @@ def fetch_series(
         Raw, untransformed series with DatetimeIndex.
     """
     cache_path = _raw_cache_path(series_id)
+    req_start  = pd.Timestamp(start)
+    req_end    = pd.Timestamp(end) if end else pd.Timestamp.today()
 
     if use_cache and cache_path.exists():
-        logger.info("Loading %s from cache", series_id)
-        return pd.read_parquet(cache_path).squeeze()
+        cached = pd.read_parquet(cache_path).squeeze()
+        # Validate the cache covers the requested window.
+        # "Covers start": cache begins at or before the requested start date.
+        # "Recent enough": cache ends within 60 days of the requested end
+        #   (prevents using an old cache that's missing recent releases).
+        covers_start  = cached.index[0] <= req_start + pd.DateOffset(days=31)
+        covers_recent = cached.index[-1] >= req_end - pd.DateOffset(days=60)
+        if covers_start and covers_recent:
+            logger.info("Loading %s from cache", series_id)
+            return cached.loc[req_start:]
+        logger.info("Cache for %s is outdated or too narrow; re-downloading", series_id)
 
     api_key = os.getenv("FRED_API_KEY")
     if not api_key:
