@@ -5,18 +5,18 @@ start of a session to know where we left off, and update it after finishing
 a step.
 
 ## Phase 0 — Setup
-- [ ] Repo structure scaffolded (src/data, src/model, src/backtest, tests,
+- [x] Repo structure scaffolded (src/data, src/model, src/backtest, tests,
       docs, app, notebooks)
-- [ ] requirements.txt created and installed into .venv
-- [ ] .env created (FRED_API_KEY) and confirmed gitignored
-- [ ] Git repo initialized, first commit made
+- [x] requirements.txt created and installed into .venv
+- [x] .env created (FRED_API_KEY) and confirmed gitignored
+- [x] Git repo initialized, first commit made
 - [ ] Pushed to GitHub (private repo)
 
 ## Phase 1 — Data Pipeline
-- [ ] src/data/fred_loader.py written (downloads + caches FRED series)
-- [ ] Stationarity transformations applied and explained
-- [ ] Mixed-frequency alignment (monthly panel + quarterly GDP) working
-- [ ] pytest for data shapes/frequencies/sanity passes
+- [x] src/data/fred_loader.py written (downloads + caches FRED series)
+- [x] Stationarity transformations applied and explained
+- [x] Mixed-frequency alignment (monthly panel + quarterly GDP) working
+- [x] pytest for data shapes/frequencies/sanity passes
 - [ ] Spot-checked values against fred.stlouisfed.org
 
 ## Phase 2 — Baseline Model
