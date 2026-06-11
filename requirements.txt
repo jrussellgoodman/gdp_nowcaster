@@ -1,0 +1,9 @@
+pandas
+numpy
+statsmodels
+fredapi
+streamlit
+pytest
+pyarrow
+matplotlib
+python-dotenv
