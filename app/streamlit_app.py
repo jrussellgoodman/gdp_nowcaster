@@ -1,5 +1,5 @@
 """
-streamlit_app.py — US GDP Nowcasting Dashboard (Phase 5, visual-polish pass)
+streamlit_app.py — US GDP Nowcasting Dashboard (Phase 6, visual redesign v2)
 
 Four tabs:
   1. Live Nowcast        — current-quarter DFM prediction as the focal point,
@@ -11,11 +11,13 @@ Four tabs:
                            custom vintages compute live)
   4. Backtest            — 2015–2025 ALFRED vintage accuracy results
 
-Visual identity:
-  All colors, the Plotly layout defaults, the page CSS, and the HTML metric
-  cards live in app/theme.py — one module so every chart stays consistent
-  (DFM = navy, GDPNow = amber, AR(1) = slate, actual GDP = near-black,
-  recessions = light-gray bands).
+Visual identity (Phase 6):
+  Dark navy page-header card · pill/segmented-control tab navigation ·
+  dark hero-card for the live nowcast · kpi-card tiles with top accent band ·
+  chart card containers (border + shadow on every Plotly chart) ·
+  navy left-bar section headers.  All design tokens live in app/styles.css as
+  CSS custom properties; Python colors in app/theme.py remain the single
+  source of truth for chart palettes.
 
 Heavy computation (EM fitting) runs once per session and is cached in memory
 via st.cache_resource, so clicking between tabs never re-fits the model.
@@ -549,21 +551,23 @@ th.inject_css(st)
 
 st.markdown(
     """
-    <div class="app-title">US GDP <span class="accent">Nowcast</span></div>
-    <div class="app-byline">
-      A real-time estimate of current-quarter US economic growth ·
-      2-factor dynamic factor model · methodology of Bok et&nbsp;al. (2018),
-      New York Fed Staff Nowcast
-    </div>
-    <div class="app-intro">
-      Official GDP figures arrive almost a month <i>after</i> a quarter ends — but
-      monthly data (jobs, factory output, retail sales…) arrive all the time.
-      A <b>nowcast</b> uses those monthly signals to estimate GDP growth for the
-      quarter we are currently living through. This dashboard runs a dynamic
-      factor model on 11 monthly indicators from FRED, updates whenever new data
-      is released, and shows exactly <i>which</i> releases moved the estimate and
-      how the model would have performed every quarter since 2015 — evaluated
-      honestly, using only data that existed at the time.
+    <div class="page-header">
+      <div class="page-header-meta">Dynamic Factor Model &nbsp;·&nbsp; FRED &amp; ALFRED &nbsp;·&nbsp; 2015–2025</div>
+      <div class="page-header-title">US GDP <span class="accent">Nowcast</span></div>
+      <div class="page-header-sub">
+        Official GDP figures arrive nearly a month after a quarter ends.
+        A nowcast uses high-frequency monthly releases — jobs, factory output,
+        retail sales — to estimate current-quarter growth <em>right now</em>, using a
+        two-factor blocked dynamic factor model with Kalman filter and EM estimation,
+        following the methodology of Bok&nbsp;et&nbsp;al.&nbsp;(2018), NY Fed Staff Nowcast.
+      </div>
+      <div class="page-header-tags">
+        <span class="header-tag">2-Factor Blocked DFM</span>
+        <span class="header-tag">Kalman Filter + EM</span>
+        <span class="header-tag">11 Monthly Indicators</span>
+        <span class="header-tag">44 Quarters Backtested</span>
+        <span class="header-tag live">&#9679; Live FRED Data</span>
+      </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -626,9 +630,12 @@ st.markdown("<div style='height:0.8rem'></div>", unsafe_allow_html=True)
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["Live Nowcast", "The Factors", "News Decomposition", "Backtest"]
-)
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📈  Live Nowcast",
+    "📊  The Factors",
+    "🗞  News",
+    "📋  Backtest",
+])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -853,7 +860,7 @@ with tab3:
         st.error("Model unavailable — news decomposition cannot run.")
     else:
         today = pd.Timestamp.today().normalize()
-        default_before = today - pd.offsets.MonthBegin(1)
+        default_before = today - pd.offsets.MonthBegin(2)
 
         before_input = st.date_input(
             "Old vintage cutoff ('before' date)",

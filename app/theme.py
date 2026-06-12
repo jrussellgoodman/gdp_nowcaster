@@ -16,16 +16,20 @@ Contents:
     * add_recession_bands()        — gray NBER bands on any Plotly figure
     * diverging_colors()           — navy/brick colors for +/− bar charts
     * stat_card() / hero_number()  — styled HTML metric components
-    * inject_css()                 — page-level CSS (header, tabs, cards)
+    * inject_css()                 — loads app/styles.css once per rerun;
+                                     injects Google Fonts + CSS design tokens
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
 
 # ── Palette ────────────────────────────────────────────────────────────────────
 # "Economic research" navy / slate / amber. Same hex = same meaning everywhere.
+# These are also exported as CSS custom properties by inject_css().
 
 NAVY      = "#14365D"   # our DFM nowcast, global factor, positive impacts
 AMBER     = "#E8A33D"   # Atlanta Fed GDPNow, real-activity factor
@@ -38,8 +42,8 @@ BG        = "#FAFBFC"   # page background (matches .streamlit/config.toml)
 TEXT      = "#1A2332"   # body text
 TEXT_MUTED = "#5B6B7C"  # captions, secondary labels
 CARD_BG   = "#FFFFFF"
-CARD_BORDER = "#DDE3EA"
-GRID      = "#E8ECF1"   # chart gridlines — barely-there
+CARD_BORDER = "#CDD5DF"  # slightly more visible than previous #DDE3EA
+GRID      = "#E2E8F0"   # chart gridlines — barely-there
 
 # Semantic aliases used by the app — prefer these in chart code so the intent
 # is readable ("COLOR_DFM" not "NAVY").
@@ -52,9 +56,10 @@ COLOR_FACTOR_REAL   = AMBER
 COLOR_POS    = NAVY
 COLOR_NEG    = BRICK
 
+# Inter first — loaded as a webfont by inject_css(); system fonts are fallbacks.
 FONT_FAMILY = (
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', "
-    "Arial, sans-serif"
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', "
+    "'Helvetica Neue', Arial, sans-serif"
 )
 
 # ── Human-readable series names ────────────────────────────────────────────────
@@ -110,8 +115,6 @@ def apply_layout(
     margins and hover styling are identical everywhere. Returns the same
     figure for chaining.
     """
-    # Only set a title when one is given — passing title=None explicitly makes
-    # plotly.js render the string "undefined" in the corner of the chart.
     if title:
         fig.update_layout(
             title=dict(text=title, font=dict(size=17, color=TEXT, family=FONT_FAMILY),
@@ -120,7 +123,7 @@ def apply_layout(
     fig.update_layout(
         height=height,
         font=dict(family=FONT_FAMILY, size=13, color=TEXT),
-        paper_bgcolor="rgba(0,0,0,0)",   # let the page background show through
+        paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=60 if title else 30, b=10),
         hovermode="x unified",
@@ -162,8 +165,6 @@ def add_recession_bands(
             fillcolor=RECESSION, opacity=0.18, layer="below", line_width=0,
         )
     if label:
-        # Invisible point whose square marker stands in for the band color.
-        # (A Bar trace here would corrupt the date axis with a category.)
         fig.add_trace(go.Scatter(
             x=[None], y=[None], name=label, mode="markers",
             marker=dict(symbol="square", size=12, color=RECESSION, opacity=0.4),
@@ -173,9 +174,7 @@ def add_recession_bands(
 
 
 # Default config for ordinary (non-explorable) charts: keep zoom/pan/reset and
-# the PNG-download camera, drop the box/lasso-select and stepwise-zoom buttons
-# nothing in this app uses. Smaller modebar = less hover clutter; perf impact
-# is negligible and that's fine — this is a UX trim, not a speed fix.
+# the PNG-download camera, drop the box/lasso-select and stepwise-zoom buttons.
 PLOTLY_BASE_CONFIG: dict = {
     "displaylogo": False,
     "modeBarButtonsToRemove": [
@@ -183,12 +182,8 @@ PLOTLY_BASE_CONFIG: dict = {
     ],
 }
 
-# Pass this as `config=` to st.plotly_chart alongside make_time_explorable().
-# scrollZoom     — mouse wheel / trackpad pinch zooms the time axis
-# doubleClick    — double-click snaps back to the full date range
-# displayModeBar — off: the hover toolbar floats over the top-right corner,
-#                  exactly where the 1Y/5Y/10Y/All buttons live, and blocks
-#                  clicks on them. Pan/zoom/reset are all native now anyway.
+# Pass alongside make_time_explorable() on the Factors chart.
+# displayModeBar off: the hover toolbar sits exactly over the range buttons.
 PLOTLY_EXPLORE_CONFIG: dict = {
     "scrollZoom": True,
     "doubleClick": "reset",
@@ -200,22 +195,14 @@ PLOTLY_EXPLORE_CONFIG: dict = {
 def make_time_explorable(fig: go.Figure) -> go.Figure:
     """
     Yahoo-Finance-style navigation for a time-series chart:
+      * click-and-drag pans instead of Plotly's default box-zoom
+      * mini range-slider below the x-axis for jumping anywhere in the sample
+      * 1Y / 5Y / 10Y / All quick-range buttons (top-right)
 
-      * click-and-drag pans (instead of Plotly's default box-zoom)
-      * a mini range-slider below the x-axis for jumping anywhere in the sample
-      * 1Y / 5Y / 10Y / All quick-range buttons (top-right, clear of the legend)
-
-    Scroll-to-zoom and double-click-to-reset live in the browser-side config,
-    not the figure — pass PLOTLY_EXPLORE_CONFIG to st.plotly_chart as well:
-
-        th.make_time_explorable(fig)
-        st.plotly_chart(fig, config=th.PLOTLY_EXPLORE_CONFIG)
+    Pass PLOTLY_EXPLORE_CONFIG to st.plotly_chart() as well.
     """
     fig.update_layout(dragmode="pan")
     # Plotly silently locks the y-axis whenever a rangeslider is shown.
-    # Unlock it: otherwise scroll-zoom/pan act on the time axis only and the
-    # 2020 COVID spike forever dictates the y-scale — the one thing zooming
-    # is supposed to escape.
     fig.update_yaxes(fixedrange=False)
     fig.update_xaxes(
         rangeslider=dict(visible=True, thickness=0.07,
@@ -227,7 +214,6 @@ def make_time_explorable(fig: go.Figure) -> go.Figure:
                 dict(count=10, label="10Y", step="year", stepmode="backward"),
                 dict(step="all", label="All"),
             ],
-            # Top-right so the buttons don't collide with the top-left legend.
             x=1.0, xanchor="right", y=1.02, yanchor="bottom",
             bgcolor=CARD_BG, activecolor=GRID,
             bordercolor=CARD_BORDER, borderwidth=1,
@@ -238,181 +224,93 @@ def make_time_explorable(fig: go.Figure) -> go.Figure:
 
 
 def diverging_colors(values) -> list[str]:
-    """Navy for non-negative values, brick red for negative — used by every
-    +/− horizontal bar chart (loadings, news impacts) for consistency."""
+    """Navy for non-negative values, brick red for negative."""
     return [COLOR_POS if v >= 0 else COLOR_NEG for v in values]
 
 
 # ── HTML components ────────────────────────────────────────────────────────────
-# st.metric can't be resized or restyled much, so headline numbers are
-# rendered as small HTML cards via st.markdown(unsafe_allow_html=True).
 
 def stat_card(label: str, value: str, sub: str = "", accent: str = NAVY) -> str:
-    """A small 'stat card': muted label on top, big value, optional footnote."""
-    sub_html = f'<div class="stat-sub">{sub}</div>' if sub else ""
+    """
+    A KPI metric tile: tiny uppercase label, large number, optional footnote.
+
+    --kpi-accent drives the 3px top band color and the value color.
+    CSS class: .kpi-card (see app/styles.css).
+    """
+    sub_html = f'<div class="kpi-sub">{sub}</div>' if sub else ""
     return f"""
-    <div class="stat-card" style="border-top: 3px solid {accent};">
-      <div class="stat-label">{label}</div>
-      <div class="stat-value" style="color:{accent};">{value}</div>
+    <div class="kpi-card" style="--kpi-accent: {accent};">
+      <div class="kpi-label">{label}</div>
+      <div class="kpi-value">{value}</div>
       {sub_html}
     </div>
     """
 
 
 def hero_number(label: str, value: str, sub: str = "", color: str = NAVY) -> str:
-    """The Live Nowcast focal point — a very large number with context lines."""
+    """
+    The Live Nowcast focal point — dark navy card with a very large white number.
+
+    `color` is kept for backward-compatibility but is not used: the dark
+    background means the value is always white (CSS `.hero-value { color: white }`).
+    CSS class: .hero-card (see app/styles.css).
+    """
     sub_html = f'<div class="hero-sub">{sub}</div>' if sub else ""
     return f"""
     <div class="hero-card">
       <div class="hero-label">{label}</div>
-      <div class="hero-value" style="color:{color};">{value}</div>
+      <div class="hero-value">{value}</div>
       {sub_html}
     </div>
     """
 
 
-# ── Page CSS ───────────────────────────────────────────────────────────────────
-
-_CSS = f"""
-<style>
-/* Tighter top padding; comfortable max width for reading */
-.block-container {{
-    padding-top: 2.2rem;
-    padding-bottom: 3rem;
-    max-width: 1200px;
-}}
-
-/* Hide Streamlit chrome — this is a research product, not a dev tool */
-#MainMenu, footer, .stDeployButton {{ visibility: hidden; }}
-
-/* ── Header ─────────────────────────────────────────────── */
-.app-title {{
-    font-size: 2.3rem;
-    font-weight: 750;
-    letter-spacing: -0.02em;
-    color: {TEXT};
-    margin-bottom: 0.1rem;
-}}
-.app-title .accent {{ color: {NAVY}; }}
-.app-byline {{
-    font-size: 0.86rem;
-    color: {TEXT_MUTED};
-    margin-bottom: 0.9rem;
-}}
-.app-intro {{
-    font-size: 1.0rem;
-    line-height: 1.55;
-    color: {TEXT};
-    max-width: 60rem;
-    margin-bottom: 0.4rem;
-}}
-
-/* ── Stat cards ─────────────────────────────────────────── */
-.stat-card {{
-    background: {CARD_BG};
-    border: 1px solid {CARD_BORDER};
-    border-radius: 8px;
-    padding: 0.9rem 1.1rem 0.8rem 1.1rem;
-    box-shadow: 0 1px 2px rgba(20, 54, 93, 0.06);
-    height: 100%;
-}}
-.stat-label {{
-    font-size: 0.74rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: {TEXT_MUTED};
-    margin-bottom: 0.15rem;
-}}
-.stat-value {{
-    font-size: 1.75rem;
-    font-weight: 720;
-    line-height: 1.15;
-    font-variant-numeric: tabular-nums;
-}}
-.stat-sub {{
-    font-size: 0.76rem;
-    color: {TEXT_MUTED};
-    margin-top: 0.2rem;
-}}
-
-/* ── Hero number (Live Nowcast) ─────────────────────────── */
-.hero-card {{
-    background: {CARD_BG};
-    border: 1px solid {CARD_BORDER};
-    border-radius: 10px;
-    padding: 1.4rem 1.6rem 1.2rem 1.6rem;
-    box-shadow: 0 1px 3px rgba(20, 54, 93, 0.08);
-    text-align: center;
-    height: 100%;
-}}
-.hero-label {{
-    font-size: 0.82rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: {TEXT_MUTED};
-}}
-.hero-value {{
-    font-size: 4.2rem;
-    font-weight: 760;
-    line-height: 1.05;
-    letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-}}
-.hero-sub {{
-    font-size: 0.84rem;
-    color: {TEXT_MUTED};
-    margin-top: 0.3rem;
-}}
-
-/* ── Tabs: larger, navy active underline ────────────────── */
-.stTabs [data-baseweb="tab-list"] {{
-    gap: 0.4rem;
-    border-bottom: 1px solid {CARD_BORDER};
-}}
-.stTabs [data-baseweb="tab"] {{
-    font-size: 1.0rem;
-    font-weight: 600;
-    padding: 0.55rem 1.0rem;
-    color: {TEXT_MUTED};
-}}
-.stTabs [aria-selected="true"] {{
-    color: {NAVY};
-}}
-
-/* Section headers inside tabs */
-.section-header {{
-    font-size: 1.28rem;
-    font-weight: 700;
-    color: {TEXT};
-    margin: 0.4rem 0 0.2rem 0;
-}}
-.section-desc {{
-    font-size: 0.94rem;
-    line-height: 1.5;
-    color: {TEXT_MUTED};
-    max-width: 56rem;
-    margin-bottom: 0.6rem;
-}}
-
-/* ── Footer ─────────────────────────────────────────────── */
-.app-footer {{
-    margin-top: 2.5rem;
-    padding-top: 0.9rem;
-    border-top: 1px solid {CARD_BORDER};
-    font-size: 0.78rem;
-    line-height: 1.6;
-    color: {TEXT_MUTED};
-}}
-.app-footer a {{ color: {NAVY}; }}
-</style>
-"""
-
+# ── CSS injection ──────────────────────────────────────────────────────────────
 
 def inject_css(st_module) -> None:
-    """Inject the page CSS once. Call right after st.set_page_config()."""
-    st_module.markdown(_CSS, unsafe_allow_html=True)
+    """
+    Inject the full page stylesheet once, right after st.set_page_config().
+
+    Structure of the injected <style> block:
+      1. @import for Inter (Google Fonts) — must be first in the block
+      2. :root {} CSS custom properties derived from the Python color constants
+         (so Python is the single source of truth for all colors)
+      3. The contents of app/styles.css — pure portable CSS using var()
+    """
+    styles_content = (Path(__file__).parent / "styles.css").read_text()
+
+    # CSS custom properties — every var() in styles.css resolves to these.
+    # Shadows use rgba values matched to NAVY so they tint navy rather than gray.
+    css_vars = (
+        f":root {{\n"
+        f"  --navy:        {NAVY};\n"
+        f"  --amber:       {AMBER};\n"
+        f"  --slate:       {SLATE};\n"
+        f"  --ink:         {INK};\n"
+        f"  --brick:       {BRICK};\n"
+        f"  --bg:          {BG};\n"
+        f"  --text:        {TEXT};\n"
+        f"  --text-muted:  {TEXT_MUTED};\n"
+        f"  --card-bg:     {CARD_BG};\n"
+        f"  --card-border: {CARD_BORDER};\n"
+        f"  --grid:        {GRID};\n"
+        f"  --radius:      12px;\n"
+        f"  --radius-sm:   8px;\n"
+        f"  --radius-lg:   16px;\n"
+        f"  --shadow-sm:   0 1px 3px rgba(20,54,93,0.07), 0 1px 2px rgba(0,0,0,0.04);\n"
+        f"  --shadow-md:   0 4px 12px rgba(20,54,93,0.11), 0 1px 3px rgba(0,0,0,0.05);\n"
+        f"  --shadow-lg:   0 8px 24px rgba(20,54,93,0.15), 0 2px 6px rgba(0,0,0,0.06);\n"
+        f"}}\n"
+    )
+
+    # @import must be the very first rule in its <style> block.
+    font_import = (
+        "@import url('https://fonts.googleapis.com/css2?family=Inter:"
+        "ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');\n"
+    )
+
+    full_css = font_import + css_vars + styles_content
+    st_module.markdown(f"<style>{full_css}</style>", unsafe_allow_html=True)
 
 
 def footer(st_module) -> None:

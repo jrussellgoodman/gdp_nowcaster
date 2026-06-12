@@ -515,12 +515,31 @@ def compute_news(
         comparison=results_before,
         impact_dates=impact_date,
         impacted_variable="GDPC1",
+        comparison_type="updated",
     )
 
     # Filter-based "before" and "after" forecasts for the target quarter
-    prev_qtr = float(news_obj.prev_impacted_forecasts["GDPC1"].iloc[0])
-    post_qtr = float(news_obj.post_impacted_forecasts["GDPC1"].iloc[0])
+    prev_series = news_obj.prev_impacted_forecasts.get("GDPC1", pd.Series(dtype=float))
+    post_series = news_obj.post_impacted_forecasts.get("GDPC1", pd.Series(dtype=float))
+
+    if prev_series.empty or post_series.empty:
+        raise ValueError(
+            f"No forecast found for GDPC1 at {nc_smooth['quarter']}. "
+            "The target quarter may be outside the model's prediction range."
+        )
+
+    prev_qtr = float(prev_series.iloc[0])
+    post_qtr = float(post_series.iloc[0])
     revision_qtr = post_qtr - prev_qtr
+
+    # impacts is empty when there are no new observations in the vintage window
+    # (e.g., no monthly releases between before_end and today in the cached data).
+    if news_obj.impacts.empty:
+        raise ValueError(
+            f"No new data releases found between {before_end!r} and today. "
+            "The cutoff date is too recent — try a date 6–8 weeks ago to capture "
+            "actual monthly indicator releases (jobs, industrial production, etc.)."
+        )
 
     total_impact_qtr = float(news_obj.impacts["total impact"].iloc[0])
 

@@ -83,7 +83,7 @@ a step.
 ★ Primary metric for README and resume bullets. Use 2-factor (2.87 pp) as headline.
 
 ### Key findings
-
+i d
 1. **2-factor is marginally better on every RMSE measure** (0.05 pp ex-2020, 1.60 pp on 2020 only).
    The improvement from +172 LLF points (Phase 3) → only 0.05 pp RMSE gain is typical:
    better in-sample fit ≠ better out-of-sample forecast accuracy.
@@ -175,64 +175,6 @@ a step.
   Period; convert with `.to_timestamp()` before plotting.
 - GDPNow comparison caveat for README: GDPNow targets the advance estimate, our
   backtest actuals are current-vintage — GDPNow's measured accuracy is flattered.
-
-## Phase 5.5 — Performance pass (2026-06-11)
-
-### Method
-Timing instrumentation added to `app/streamlit_app.py` behind the
-`NOWCAST_DEBUG_TIMING=1` env flag (`_timed()` context manager + per-rerun
-breakdown printed to the terminal; zero overhead when off). Baselines and
-after-numbers measured with Streamlit AppTest warm reruns — a warm rerun is
-exactly what every widget interaction costs, since Streamlit re-executes the
-whole script on each interaction. Tab clicks alone trigger NO rerun
-(st.tabs is frontend-only).
-
-### Before / after (backend script rerun, instrumented sections)
-
-| Interaction                    | Before    | After     |
-|--------------------------------|-----------|-----------|
-| Warm rerun (any widget)        | 60–80 ms  | 38–42 ms  |
-| News-tab date_input change     | ~60 ms    | ~38 ms    |
-| Cold first load (disk-cached data) | ~6.2 s — 4.4 s model fit | unchanged (already st.cache_resource) |
-
-Slowest sections before → after: tab3_example_render 8–27 → 6–8 ms ·
-tab2_factor_fig_build 12–16 → 3–5 ms · tab2_factor_extract 4.4 → 0.2 ms ·
-tab1_track_record_fig_build 7–10 → ~5 ms (cache-hit cost).
-
-### Changes
-- **Figure construction cached (st.cache_data):** all six figure builders
-  moved to module level — `_build_track_record_fig`, `_build_factor_fig`,
-  `_build_loadings_fig`, `_build_backtest_fig`, `_build_scatter_fig`,
-  `_impact_bar_chart` — keyed on their input DataFrames. Unhashable
-  statsmodels results object excluded from hashing (underscore param) and
-  fingerprinted by `_results_key()` = (llf, nobs).
-- **Derived-data caching:** `_get_factor_df` (MultiIndex unwrap +
-  PeriodIndex→Timestamp conversion, was re-running every rerun) and
-  `_get_loadings` (params scan) now st.cache_data.
-- **Comparison table** build cached (`_build_comparison_table`); Styler
-  applied outside the cache (Stylers don't pickle).
-- **Modebar trimmed** (`th.PLOTLY_BASE_CONFIG`): lasso/box-select and
-  stepwise-zoom buttons removed on ordinary charts; explorable charts
-  (Factors) already hide the modebar entirely. UX cleanup, not a speed fix.
-
-### Decided against, with reasons
-- **Scattergl:** largest trace is 318 points (factor chart); track record is
-  44/trace. WebGL pays off ~10k+ points, costs a browser WebGL context per
-  chart (cap ~8–16; app has 6+ charts) and renders blurrier lines. Net loss.
-- **Display downsampling:** nothing to downsample at ≤318 points; decimation
-  could alias the 2020 COVID spike.
-- **Hover trimming:** payloads are 44-element quarter-label lists — bytes.
-- **Caching nowcast/AR(1)/rmse_stats:** 1–3 ms each per rerun; not worth the
-  cache-key complexity around the unhashable results object.
-
-### Verification (acceptance criteria)
-- pytest -q: 89 passed (incl. test_gdpnow.py, test_news.py, test_backtest.py)
-- AppTest: 4 runs (cold, 2 warm, date_input change) — zero exceptions
-- Headless Chromium: all four tabs screenshotted — zero Streamlit exceptions,
-  zero browser console errors
-- News tab confirmed to use precomputed data/news_example.csv (0.1 ms cached
-  read per rerun); live compute_news runs only on button click and is kept in
-  session_state
 
 ## Notes / Decisions Log
 (Add dated notes here as decisions are made, e.g. "2026-06-15: reduced to 3
