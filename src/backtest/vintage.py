@@ -333,18 +333,18 @@ def build_vintage_dfm_data(
     )
     gdp_growth = gdp_growth.asfreq("QS")
 
-    # Extend by one NaN row for the nowcast target quarter.
-    # The target is the quarter that contains as_of_date — its GDP advance
-    # release hasn't happened yet (eval_date is the last day of the quarter).
+    # Extend to the target quarter (the quarter containing as_of_date) so it
+    # appears as NaN — its GDP advance release hasn't happened yet (eval_date
+    # is the last day of the quarter). Reindexing onto a gap-free quarterly
+    # grid — rather than concatenating a single row — also handles the case
+    # where the ALFRED vintage's last actual is more than one quarter behind
+    # the target: a single-row extension would leave a hole in the index and
+    # crash pandas' frequency-conformance check (see dfm.py for the same fix
+    # and the concrete failure mode).
     current_qtr = as_of_ts.to_period("Q").to_timestamp()
     if gdp_growth.index[-1] < current_qtr:
-        extension = pd.Series(
-            [float("nan")],
-            index=pd.DatetimeIndex([current_qtr]),
-            name="GDPC1",
-        )
-        gdp_growth = pd.concat([gdp_growth, extension])
-        gdp_growth.index.freq = pd.tseries.frequencies.to_offset("QS")
+        full_index = pd.date_range(gdp_growth.index[0], current_qtr, freq="QS-JAN")
+        gdp_growth = gdp_growth.reindex(full_index)
 
     quarterly_df = pd.DataFrame({"GDPC1": gdp_growth})
 

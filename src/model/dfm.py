@@ -190,21 +190,23 @@ def prepare_dfm_data(
     # which is exactly quarter-start. ("QS" is invalid as a to_timestamp arg
     # in pandas 3.x — pass nothing instead.)
     gdp_growth.index = pd.DatetimeIndex(gdp_growth.index).to_period("Q").to_timestamp()
-    gdp_growth = gdp_growth.asfreq("QS")   # sets freq attribute on the index
 
-    # Extend to the current quarter so the unreleased period appears as NaN.
-    # Without this, extract_nowcast would find no missing quarter to predict.
-    today = pd.Timestamp.today()
-    current_qtr_start = today.to_period("Q").to_timestamp()
-    if gdp_growth.index[-1] < current_qtr_start:
-        extension = pd.Series(
-            [float("nan")],
-            index=pd.DatetimeIndex([current_qtr_start]),
-            name="GDPC1",
-        )
-        gdp_growth = pd.concat([gdp_growth, extension])
-        # pd.concat drops the freq attribute; restore it explicitly
-        gdp_growth.index.freq = pd.tseries.frequencies.to_offset("QS")
+    # Extend by exactly one quarter past the last released actual — that
+    # quarter is the nowcast target — then reindex onto a gap-free grid.
+    #
+    # We anchor on "last actual + 1 quarter", NOT `pd.Timestamp.today()`.
+    # Those usually agree, but diverge for up to ~4 weeks after each quarter
+    # ends: e.g. on July 1, "today's quarter" is Q3, but Q2's advance GDP
+    # estimate hasn't been released yet — Q2, not Q3, is what should be
+    # nowcast (Q3 has zero months of monthly data behind it on day one).
+    # Anchoring on `today` also crashed outright when the gap reached 2+
+    # quarters: inserting a single NaN row for "today's quarter" skipped the
+    # quarter in between, leaving a hole that made `.asfreq("QS")` raise a
+    # frequency-conformance error. `pd.date_range(freq="QS-JAN")` + reindex
+    # fills any gap and can never produce a non-conforming index.
+    target_qtr  = gdp_growth.index[-1] + pd.DateOffset(months=3)
+    full_index  = pd.date_range(gdp_growth.index[0], target_qtr, freq="QS-JAN")
+    gdp_growth  = gdp_growth.reindex(full_index)
 
     quarterly_df = pd.DataFrame({"GDPC1": gdp_growth})
 
