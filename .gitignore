@@ -17,6 +17,13 @@ __pycache__/
 # Data cache (regenerated, can be large)
 data/*
 !data/.gitkeep
+# Precomputed results the deployed app needs (small, safe — public data only).
+# The raw/ and alfred/ API caches stay ignored; these build artifacts ship.
+!data/backtest_results.csv
+!data/backtest_results_2factor.csv
+!data/gdpnow_eoq.csv
+!data/news_example.csv
+!data/news_example_meta.json
 
 # Jupyter
 .ipynb_checkpoints/

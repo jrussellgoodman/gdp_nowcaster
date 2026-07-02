@@ -14,8 +14,8 @@ Atlanta Fed's GDPNow and a naïve AR(1).
 ## Abstract
 
 Official GDP is published with a lag of nearly a month after a quarter ends,
-yet dozens of monthly indicators — payrolls, industrial production, retail
-sales, regional Fed surveys — arrive continuously throughout the quarter. A
+yet dozens of monthly indicators - payrolls, industrial production, retail
+sales, regional Fed surveys - arrive continuously throughout the quarter. A
 *nowcast* exploits these higher-frequency releases to estimate GDP growth for
 the quarter currently in progress. This project implements a two-factor blocked
 dynamic factor model on 11 monthly US indicators plus quarterly real GDP,
@@ -26,7 +26,7 @@ with the Kalman filter and smoother, fits parameters via the EM algorithm, and
 decomposes each nowcast revision into the contribution of individual data
 releases ("the news"). Evaluated out-of-sample on 44 quarters (2015 Q1 – 2025
 Q4) using strictly vintage-faithful ALFRED data — so the model never sees a
-number that did not exist at the time — the two-factor model achieves a
+number that did not exist at the time - the two-factor model achieves a
 real-time RMSE of **2.87 annualized percentage points excluding 2020**. A naïve
 AR(1) edges it (1.95 pp) in calm periods, which is expected for an 11-series
 model versus the NY Fed's 127, but the DFM's value lies in turbulent periods
@@ -323,7 +323,7 @@ scripts/     one-off data prep (GDPNow fetch, news example, backtests)
   factors are identified only up to a sign reversal, so loading *signs* across
   the two factors follow opposite conventions (documented in the dashboard).
 - **Not an official forecast.** This is a student research project built as a
-  portfolio piece, not investment or policy advice.
+  learning tool, not investment or policy advice.
 
 ---
 
