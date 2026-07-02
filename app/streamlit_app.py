@@ -66,6 +66,15 @@ try:
 except Exception:
     pass
 
+# One line in the server log (Streamlit Cloud: Manage app → logs) that answers
+# the two questions that matter when the cloud deploy misbehaves: is this the
+# current build, and did the FRED key make it into the environment?
+print(
+    f"[startup] build=2026-07-01.2  "
+    f"FRED_API_KEY present: {bool(os.getenv('FRED_API_KEY'))}",
+    flush=True,
+)
+
 # ── Debug timing instrumentation (Phase 5.5 performance pass) ─────────────────
 # Set NOWCAST_DEBUG_TIMING=1 to print per-section wall times to the terminal on
 # every script rerun. Zero overhead when the flag is off. Used to measure the
@@ -583,6 +592,19 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+# Preflight: on a cold start (no data/raw cache — e.g., Streamlit Cloud) the
+# model must fetch from FRED, which is impossible without a key. Surface that
+# as instructions rather than letting the fit fail with a cryptic traceback.
+if not os.getenv("FRED_API_KEY"):
+    st.error(
+        "**FRED_API_KEY is not configured — the model cannot download data.**\n\n"
+        "On Streamlit Cloud: open **Manage app → Settings → Secrets**, paste\n\n"
+        "```toml\nFRED_API_KEY = \"your_key_here\"\n```\n\n"
+        "save, then **Reboot** the app (⋮ menu). "
+        "Get a free key at https://fred.stlouisfed.org (My Account → API Keys). "
+        "Running locally: put the same line in a `.env` file at the project root."
+    )
 
 # Fit the model once — every tab shares these objects.
 with st.spinner("Downloading FRED data and fitting the 2-factor DFM — ~30 seconds on first load…"):
