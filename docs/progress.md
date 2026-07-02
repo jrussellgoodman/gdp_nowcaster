@@ -176,6 +176,24 @@ i d
 - GDPNow comparison caveat for README: GDPNow targets the advance estimate, our
   backtest actuals are current-vintage — GDPNow's measured accuracy is flattered.
 
+## Phase 6.5 — Chart-scale fix + visual restraint pass (2026-07-01)
+- [x] **Focused/Full scale toggles** on all time-series charts (`th.focused_yaxis`).
+      Y-axes now default to the data's normal range computed excluding 2020;
+      COVID extremes are printed on-chart (e.g. "Apr 2020 beyond this scale:
+      global factor +32.5") with a one-click Full-range button. Rationale: the
+      FT/Economist convention for post-COVID macro charts — autoscaling to a
+      20-sigma observation flattens 95% of history into an unreadable stripe.
+- [x] Backtest scatter defaults to the 40 normal quarters, "Include 2020" widens.
+- [x] Visual restraint pass for academic audience: emoji removed from tabs,
+      header 3.8rem→2.7rem + single subtle orb, hero 5.4→4.1rem, KPI 2.25→1.85rem,
+      content column capped at 1380px, chart heights 600→440-480, inner chart
+      padding. Old arrow-annotations (COVID collapse / worst miss) replaced by
+      the on-chart scale notes.
+- [x] Robustness: prepare_dfm_data now drops all-NaN series (failed FRED fetch)
+      instead of letting DFM standardize produce inf — same guard vintage.py had.
+- [x] scripts/screenshot_tabs.py added (playwright full-page captures per tab);
+      docs/figures/after_redesign_tab1–4.png regenerated with the new design.
+
 ## Notes / Decisions Log
 (Add dated notes here as decisions are made, e.g. "2026-06-15: reduced to 3
 factors due to slow EM convergence with 5.")

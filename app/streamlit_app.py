@@ -195,7 +195,7 @@ def _quarter_hover(name: str, labels) -> dict:
 
 
 @st.cache_data(show_spinner=False)
-def _impact_bar_chart(tidy: pd.DataFrame, target_quarter: str, height: int = 550) -> go.Figure:
+def _impact_bar_chart(tidy: pd.DataFrame, target_quarter: str, height: int = 420) -> go.Figure:
     """
     The news-decomposition hero chart: one horizontal bar per data series,
     navy = the release pushed the GDP nowcast up, brick = pulled it down.
@@ -215,7 +215,7 @@ def _impact_bar_chart(tidy: pd.DataFrame, target_quarter: str, height: int = 550
     ))
     th.apply_layout(
         fig,
-        height=max(height, 60 * len(tidy) + 120),
+        height=max(height, 44 * len(tidy) + 120),
         x_title=f"Impact on {target_quarter} GDP nowcast (annualized pp)",
         legend_top=False,
     )
@@ -314,7 +314,23 @@ def _build_track_record_fig(bt2: pd.DataFrame, gn: pd.DataFrame) -> go.Figure:
     th.add_recession_bands(
         fig, periods=[("2020-01-01", "2021-01-01")], label="COVID 2020",
     )
-    th.apply_layout(fig, height=600, y_title="Annualized quarterly growth (%)")
+    th.apply_layout(fig, height=440, y_title="Annualized quarterly growth (%)")
+
+    # Focused scale by default: 2020's ±31% swings otherwise flatten the
+    # other 40 quarters (±1–4%) into an unreadable stripe. The extremes are
+    # printed on the chart, and "Full range" is one click away.
+    dated = lambda col: pd.Series(bt2[col].values, index=bt2["target_quarter"])
+    q2 = bt2.loc[bt2["quarter_label"] == "2020 Q2", "actual_ann"]
+    q3 = bt2.loc[bt2["quarter_label"] == "2020 Q3", "actual_ann"]
+    note = None
+    if not q2.empty and not q3.empty:
+        note = (f"2020 beyond this scale — actual: "
+                f"{q2.iloc[0]:+.0f}% (Q2), {q3.iloc[0]:+.0f}% (Q3)")
+    th.focused_yaxis(
+        fig,
+        [dated("actual_ann"), dated("dfm_nowcast_ann")],
+        note=note,
+    )
     return fig
 
 
@@ -335,22 +351,29 @@ def _build_factor_fig(factor_df: pd.DataFrame) -> go.Figure:
             hovertemplate=f"{factor_labels[i]}: %{{y:.2f}}<extra>%{{x|%b %Y}}</extra>",
         ))
     th.add_recession_bands(fig2, label="NBER recession")
-    th.apply_layout(fig2, height=600, y_title="Standardized factor value")
+    th.apply_layout(fig2, height=480, y_title="Standardized factor value")
     th.make_time_explorable(fig2)
 
-    # Annotate the most dramatic moment in the sample — the COVID collapse.
-    g = factor_df[col_names[0]]
-    trough = g.idxmin()
-    if trough.year == 2020:
-        fig2.add_annotation(
-            x=trough, y=float(g.min()),
-            text="<b>COVID collapse</b><br>sharpest drop in the sample —<br>"
-                 "and an instant rebound, unlike 2008",
-            showarrow=True, arrowhead=2, arrowcolor=th.TEXT_MUTED,
-            ax=110, ay=10, align="left",
-            font=dict(size=12, color=th.TEXT),
-            bgcolor="rgba(255,255,255,0.85)", bordercolor=th.CARD_BORDER,
-        )
+    # Focused scale by default. The April 2020 factor readings are an order
+    # of magnitude beyond anything else in the sample; autoscaling to them
+    # turns 25 years of business-cycle history into a flat line with one
+    # spike. The COVID extremes are stated in an on-chart note instead, and
+    # the range slider below still shows the full silhouette for context.
+    extremes = []
+    for i, col in enumerate(col_names):
+        s = factor_df[col].dropna()
+        s2020 = s[s.index.year == 2020]
+        if not s2020.empty:
+            worst = s2020.loc[s2020.abs().idxmax()]
+            extremes.append(f"{factor_labels[i].lower()} {worst:+.1f}")
+    note = ("Apr 2020 beyond this scale: " + " · ".join(extremes)) if extremes else None
+    th.focused_yaxis(
+        fig2,
+        [factor_df[c] for c in col_names],
+        note=note,
+        toggle_y=1.24,
+        margin_top=112,
+    )
     return fig2
 
 
@@ -390,7 +413,7 @@ def _build_loadings_fig(loadings_df: pd.DataFrame) -> go.Figure:
         marker=dict(color=th.COLOR_FACTOR_REAL, opacity=0.88, line_width=0),
         hovertemplate="%{y}<br>Real-activity loading: %{x:+.3f}<extra></extra>",
     ))
-    th.apply_layout(fig_load, height=520, x_title="Loading coefficient",
+    th.apply_layout(fig_load, height=440, x_title="Loading coefficient",
                     legend_top=True)
     fig_load.update_layout(
         barmode="group",
@@ -427,23 +450,23 @@ def _build_backtest_fig(bt2: pd.DataFrame) -> go.Figure:
     ))
     th.add_recession_bands(figb, periods=[("2020-01-01", "2021-01-01")],
                            label="COVID 2020")
+    th.apply_layout(figb, height=440, y_title="Annualized quarterly growth (%)")
 
-    # Flag the single worst miss in the sample, per the "don't hide 2020"
-    # design decision.
-    q3_2020 = bt2[bt2["quarter_label"] == "2020 Q3"]
-    if not q3_2020.empty:
-        figb.add_annotation(
-            x=q3_2020["target_quarter"].iloc[0],
-            y=float(q3_2020["actual_ann"].iloc[0]),
-            text="<b>Q3 2020: the model's worst miss (~43 pp)</b><br>"
-                 "actual GDP rebounded +30% as the economy reopened;<br>"
-                 "the DFM, trained on business cycles, predicted more collapse",
-            showarrow=True, arrowhead=2, arrowcolor=th.TEXT_MUTED,
-            ax=150, ay=-10, align="left",
-            font=dict(size=12, color=th.TEXT),
-            bgcolor="rgba(255,255,255,0.85)", bordercolor=th.CARD_BORDER,
-        )
-    th.apply_layout(figb, height=600, y_title="Annualized quarterly growth (%)")
+    # Focused scale with the worst miss stated on-chart (per the "don't hide
+    # 2020" decision — it's printed, not hidden, and Full range shows it all).
+    q3 = bt2[bt2["quarter_label"] == "2020 Q3"]
+    note = None
+    if not q3.empty:
+        miss = float(q3["actual_ann"].iloc[0] - q3["dfm_nowcast_ann"].iloc[0])
+        note = (f"2020 beyond this scale — worst miss Q3: actual "
+                f"{q3['actual_ann'].iloc[0]:+.0f}% vs DFM "
+                f"{q3['dfm_nowcast_ann'].iloc[0]:+.0f}% ({miss:.0f} pp)")
+    dated = lambda col: pd.Series(bt2[col].values, index=bt2["target_quarter"])
+    th.focused_yaxis(
+        figb,
+        [dated("actual_ann"), dated("dfm_nowcast_ann"), dated("ar1_nowcast_ann")],
+        note=note,
+    )
     return figb
 
 
@@ -478,11 +501,39 @@ def _build_scatter_fig(bt2: pd.DataFrame) -> go.Figure:
         x=[-lim, lim], y=[-lim, lim], mode="lines", name="Perfect nowcast",
         line=dict(color=th.SLATE, width=1, dash="dash"), hoverinfo="skip",
     ))
-    th.apply_layout(figs, height=560, x_title="DFM nowcast (annualized %)",
+    th.apply_layout(figs, height=520, x_title="DFM nowcast (annualized %)",
                     y_title="Actual GDP (annualized %)")
     figs.update_layout(hovermode="closest")
     figs.update_yaxes(scaleanchor="x", scaleratio=1)
-    figs.update_xaxes(range=[-lim, lim])
+
+    # Default to the normal-times cluster; the four 2020 points sit at ±30%
+    # and would otherwise crush 40 quarters into the middle 10% of the plot.
+    lim_n = float(np.nanmax(np.abs(ex20[["dfm_nowcast_ann", "actual_ann"]].values))) * 1.25
+    figs.update_xaxes(range=[-lim_n, lim_n])
+    figs.update_yaxes(range=[-lim_n, lim_n])
+    figs.update_layout(
+        margin=dict(t=80),
+        updatemenus=[dict(
+            type="buttons", direction="right",
+            x=0.99, xanchor="right", y=1.10, yanchor="bottom",
+            bgcolor=th.CARD_BG, bordercolor=th.CARD_BORDER, borderwidth=1,
+            font=dict(size=11.5, color=th.TEXT, family=th.FONT_FAMILY),
+            buttons=[
+                dict(label="Normal quarters", method="relayout",
+                     args=[{"xaxis.range": [-lim_n, lim_n],
+                            "yaxis.range": [-lim_n, lim_n]}]),
+                dict(label="Include 2020", method="relayout",
+                     args=[{"xaxis.range": [-lim, lim],
+                            "yaxis.range": [-lim, lim]}]),
+            ],
+        )],
+    )
+    figs.add_annotation(
+        xref="paper", yref="paper", x=0.99, y=0.02,
+        text="4 COVID quarters outside this view — click “Include 2020”",
+        showarrow=False, align="right",
+        font=dict(size=11, color=th.TEXT_MUTED),
+    )
     return figs
 
 
@@ -664,10 +715,10 @@ st.markdown("<div style='height:0.8rem'></div>", unsafe_allow_html=True)
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📈  Live Nowcast",
-    "📊  The Factors",
-    "🗞  News",
-    "📋  Backtest",
+    "Live Nowcast",
+    "The Factors",
+    "News",
+    "Backtest",
 ])
 
 
@@ -786,9 +837,10 @@ with tab2:
         with _timed("tab2_factor_fig_render"):
             st.plotly_chart(fig2, width="stretch", config=th.PLOTLY_EXPLORE_CONFIG)
         st.caption(
-            "Drag to pan · scroll to zoom · drag the mini-chart below the axis "
-            "to jump around · 1Y/5Y/10Y/All buttons for quick ranges · "
-            "double-click to reset."
+            "The y-axis opens on the normal business-cycle range; the April 2020 "
+            "readings sit far beyond it and are printed on the chart — use "
+            "“Full range” to see them in proportion. Drag to pan · scroll to "
+            "zoom · mini-chart below jumps anywhere · double-click resets."
         )
 
         st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
@@ -1047,10 +1099,11 @@ with tab4:
     with _timed("tab4_scatter_fig_render"):
         st.plotly_chart(figs, width="stretch", config=th.PLOTLY_BASE_CONFIG)
     st.caption(
-        "Points above the dashed 45° line = the model under-predicted. The 2020 "
-        "quarters (hollow brick markers) dwarf everything else — drag-select the "
-        "central cluster to zoom into the normal-times fit. Their inclusion is "
-        "deliberate: reporting accuracy only on easy quarters would be cherry-picking."
+        "Points above the dashed 45° line = the model under-predicted. The view "
+        "opens on the 40 normal quarters; “Include 2020” widens the axes to the "
+        "four COVID quarters, whose ±30% swings dwarf everything else. They are "
+        "in every reported statistic — defaulted out of the view, never out of "
+        "the results."
     )
 
     with st.expander("Full results table — all 44 quarters"):

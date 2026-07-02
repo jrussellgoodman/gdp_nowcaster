@@ -168,6 +168,20 @@ def prepare_dfm_data(
     first_valid = non_empty.index[0]
     monthly_df  = monthly_df.loc[first_valid:]
 
+    # Drop any series whose entire history is NaN (build_panel fills a column
+    # with NaN when its FRED fetch fails — e.g., a transient network error or
+    # rate limit). An all-NaN column makes DynamicFactorMQ's standardize step
+    # produce inf and the EM fit dies with a cryptic "non-finite values" error.
+    # Better to run on the remaining series and say so than to crash.
+    # (build_vintage_dfm_data has the same guard for the backtest path.)
+    all_nan_cols = [c for c in monthly_df.columns if monthly_df[c].isna().all()]
+    if all_nan_cols:
+        logger.warning(
+            "Dropping %d series whose FRED fetch failed (all-NaN): %s",
+            len(all_nan_cols), all_nan_cols,
+        )
+        monthly_df = monthly_df.drop(columns=all_nan_cols)
+
     # ── Quarterly GDP — on its natural quarterly-frequency index ───────────────
     # DynamicFactorMQ requires endog_quarterly to have freq starting with 'Q'.
     # We fetch GDPC1 raw (quarterly dates from FRED: 2000-01-01, 2000-04-01…),

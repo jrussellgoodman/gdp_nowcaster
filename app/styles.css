@@ -23,7 +23,10 @@ button, input, select, textarea {
     padding-bottom: 4rem !important;
     padding-left: 3rem !important;
     padding-right: 3rem !important;
-    max-width: 100% !important;
+    /* Editorial column: unbounded width on a 27" monitor produces 300-char
+       line lengths and stretched charts. 1380px reads like a research page. */
+    max-width: 1380px !important;
+    margin: 0 auto !important;
 }
 
 /* Hide Streamlit chrome — deploy button, hamburger menu */
@@ -39,29 +42,19 @@ button, input, select, textarea {
 .page-header {
     background: linear-gradient(140deg, #0B1F38 0%, #14365D 55%, #1A4E84 100%);
     border-radius: var(--radius-lg);
-    padding: 3rem 3.2rem 2.6rem;
-    margin-bottom: 2rem;
+    padding: 2.2rem 2.6rem 1.9rem;
+    margin-bottom: 1.6rem;
     position: relative;
     overflow: hidden;
 }
 
-/* Amber decorative orb — top-right */
+/* Single restrained accent — top-right */
 .page-header::before {
     content: '';
     position: absolute;
     right: -90px; top: -90px;
-    width: 420px; height: 420px;
-    background: radial-gradient(circle, rgba(232,163,61,0.20) 0%, transparent 68%);
-    border-radius: 50%;
-    pointer-events: none;
-}
-/* Subtle orb — bottom-left */
-.page-header::after {
-    content: '';
-    position: absolute;
-    left: -50px; bottom: -70px;
-    width: 260px; height: 260px;
-    background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+    width: 380px; height: 380px;
+    background: radial-gradient(circle, rgba(232,163,61,0.12) 0%, transparent 68%);
     border-radius: 50%;
     pointer-events: none;
 }
@@ -76,21 +69,21 @@ button, input, select, textarea {
 }
 
 .page-header-title {
-    font-size: 3.8rem;
-    font-weight: 900;
-    letter-spacing: -0.05em;
-    line-height: 0.93;
+    font-size: 2.7rem;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.0;
     color: #FFFFFF;
-    margin-bottom: 1rem;
+    margin-bottom: 0.8rem;
 }
 .page-header-title .accent { color: var(--amber); }
 
 .page-header-sub {
-    font-size: 0.93rem;
-    line-height: 1.65;
-    color: rgba(255,255,255,0.58);
-    max-width: 58rem;
-    margin-bottom: 1.6rem;
+    font-size: 0.9rem;
+    line-height: 1.62;
+    color: rgba(255,255,255,0.62);
+    max-width: 52rem;
+    margin-bottom: 1.25rem;
     font-weight: 400;
 }
 
@@ -124,7 +117,7 @@ button, input, select, textarea {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: var(--radius);
-    padding: 1.4rem 1.6rem 1.3rem;
+    padding: 1.15rem 1.35rem 1.05rem;
     box-shadow: var(--shadow-sm);
     height: 100%;
     position: relative;
@@ -157,8 +150,8 @@ button, input, select, textarea {
     line-height: 1.3;
 }
 .kpi-value {
-    font-size: 2.25rem;
-    font-weight: 900;
+    font-size: 1.85rem;
+    font-weight: 800;
     line-height: 1;
     letter-spacing: -0.03em;
     font-variant-numeric: tabular-nums;
@@ -178,7 +171,7 @@ button, input, select, textarea {
     background: linear-gradient(145deg, #0B1F38 0%, var(--navy) 100%);
     border: none;
     border-radius: var(--radius-lg);
-    padding: 2.2rem 2.4rem 2rem;
+    padding: 1.8rem 2rem 1.6rem;
     box-shadow: var(--shadow-lg);
     text-align: center;
     height: 100%;
@@ -210,10 +203,10 @@ button, input, select, textarea {
     line-height: 1.3;
 }
 .hero-value {
-    font-size: 5.4rem;
-    font-weight: 900;
-    line-height: 0.88;
-    letter-spacing: -0.055em;
+    font-size: 4.1rem;
+    font-weight: 800;
+    line-height: 0.92;
+    letter-spacing: -0.045em;
     font-variant-numeric: tabular-nums;
     color: #FFFFFF;
     margin-bottom: 0.5rem;
@@ -275,8 +268,8 @@ button, input, select, textarea {
 
 /* ── Section headers ─────────────────────────────────────────────────────── */
 .section-header {
-    font-size: 1.18rem;
-    font-weight: 800;
+    font-size: 1.06rem;
+    font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text);
     margin: 1.4rem 0 0.18rem;
@@ -317,6 +310,7 @@ button, input, select, textarea {
     box-shadow: var(--shadow-sm);
     overflow: hidden;
     margin-bottom: 0.5rem;
+    padding: 0.7rem 0.9rem 0.3rem;
 }
 
 

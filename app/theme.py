@@ -122,10 +122,10 @@ def apply_layout(
         )
     fig.update_layout(
         height=height,
-        font=dict(family=FONT_FAMILY, size=13, color=TEXT),
+        font=dict(family=FONT_FAMILY, size=12.5, color=TEXT),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=10, r=10, t=60 if title else 30, b=10),
+        margin=dict(l=8, r=8, t=60 if title else 34, b=8),
         hovermode="x unified",
         hoverlabel=dict(
             bgcolor="white", bordercolor=CARD_BORDER,
@@ -133,8 +133,8 @@ def apply_layout(
         ),
         legend=(
             dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0,
-                 font=dict(size=12), bgcolor="rgba(0,0,0,0)")
-            if legend_top else dict(font=dict(size=12))
+                 font=dict(size=11.5), bgcolor="rgba(0,0,0,0)")
+            if legend_top else dict(font=dict(size=11.5))
         ),
     )
     fig.update_xaxes(
@@ -214,7 +214,7 @@ def make_time_explorable(fig: go.Figure) -> go.Figure:
                 dict(count=10, label="10Y", step="year", stepmode="backward"),
                 dict(step="all", label="All"),
             ],
-            x=1.0, xanchor="right", y=1.02, yanchor="bottom",
+            x=0.99, xanchor="right", y=1.02, yanchor="bottom",
             bgcolor=CARD_BG, activecolor=GRID,
             bordercolor=CARD_BORDER, borderwidth=1,
             font=dict(size=12, color=TEXT),
@@ -226,6 +226,90 @@ def make_time_explorable(fig: go.Figure) -> go.Figure:
 def diverging_colors(values) -> list[str]:
     """Navy for non-negative values, brick red for negative."""
     return [COLOR_POS if v >= 0 else COLOR_NEG for v in values]
+
+
+def focused_yaxis(
+    fig: go.Figure,
+    series_list: list[pd.Series],
+    *,
+    exclude: tuple[str, str] = ("2020-01-01", "2021-01-01"),
+    pad: float = 0.16,
+    note: str | None = None,
+    note_position: str = "bottom",
+    toggle_y: float = 1.10,
+    margin_top: int = 80,
+) -> go.Figure:
+    """
+    Default the y-axis to the data's NORMAL range, with a Focused/Full toggle.
+
+    The post-2020 charting problem: COVID observations are 5–10× larger than
+    anything else in a macro sample. Autoscaling the y-axis to include them
+    compresses all other variation into a flat stripe — the chart becomes
+    unreadable for the 95% of history the reader actually wants to compare.
+
+    Standard editorial practice (FT, The Economist, Fed research notes) is to
+    clip the axis to the normal range, print the off-scale extremes as text,
+    and let the reader opt into the full range. This helper implements that:
+
+      * y-axis defaults to the min/max of the data OUTSIDE the `exclude`
+        window (COVID 2020 by default), padded by `pad`;
+      * a "Focused / Full range" button pair (top-right) switches scales;
+      * `note` (if given) is pinned near the excluded window, so the clipped
+        extremes are stated, not hidden.
+
+    If the excluded window doesn't actually extend beyond the normal range
+    (nothing would be clipped), the toggle is skipped entirely.
+    """
+    included, excluded_vals = [], []
+    x0, x1 = pd.Timestamp(exclude[0]), pd.Timestamp(exclude[1])
+    for s in series_list:
+        s = s.dropna()
+        mask = (s.index >= x0) & (s.index < x1)
+        included.append(s[~mask])
+        excluded_vals.append(s[mask])
+
+    inc = pd.concat(included)
+    exc = pd.concat(excluded_vals) if excluded_vals else pd.Series(dtype=float)
+    if inc.empty:
+        return fig
+
+    span = float(inc.max() - inc.min()) or 1.0
+    lo   = float(inc.min()) - span * pad
+    hi   = float(inc.max()) + span * pad
+
+    # Nothing outside the focused range → plain autoscale, no toggle needed.
+    if exc.empty or (exc.min() >= lo and exc.max() <= hi):
+        return fig
+
+    fig.update_layout(
+        yaxis_range=[lo, hi],
+        # extra headroom so the toggle row sits above the legend, not on it
+        margin=dict(t=margin_top),
+        updatemenus=[dict(
+            type="buttons", direction="right",
+            x=0.99, xanchor="right", y=toggle_y, yanchor="bottom",
+            pad=dict(r=0, t=0, b=0, l=0),
+            bgcolor=CARD_BG, bordercolor=CARD_BORDER, borderwidth=1,
+            font=dict(size=11.5, color=TEXT, family=FONT_FAMILY),
+            buttons=[
+                dict(label="Focused scale", method="relayout",
+                     args=[{"yaxis.range": [lo, hi]}]),
+                dict(label="Full range", method="relayout",
+                     args=[{"yaxis.autorange": True}]),
+            ],
+        )],
+    )
+
+    if note:
+        y_note = lo + span * 0.06 if note_position == "bottom" else hi - span * 0.06
+        fig.add_annotation(
+            x=x0 + (x1 - x0) / 2, y=y_note,
+            text=note, showarrow=False,
+            font=dict(size=11, color=TEXT_MUTED, family=FONT_FAMILY),
+            bgcolor="rgba(255,255,255,0.9)",
+            bordercolor=CARD_BORDER, borderwidth=1, borderpad=4,
+        )
+    return fig
 
 
 # ── HTML components ────────────────────────────────────────────────────────────
