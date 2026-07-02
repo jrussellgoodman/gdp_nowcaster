@@ -55,6 +55,17 @@ from src.model.dfm import (
     prepare_dfm_data,
 )
 
+# ── FRED API key bridge (Streamlit Cloud) ─────────────────────────────────────
+# The src/ modules read the key via os.getenv("FRED_API_KEY"). Locally that
+# comes from .env; on Streamlit Community Cloud it comes from st.secrets. Copy
+# it into the environment so the data loaders find it regardless of platform.
+# (Accessing st.secrets raises if no secrets.toml exists, so guard with try.)
+try:
+    if not os.getenv("FRED_API_KEY") and "FRED_API_KEY" in st.secrets:
+        os.environ["FRED_API_KEY"] = str(st.secrets["FRED_API_KEY"])
+except Exception:
+    pass
+
 # ── Debug timing instrumentation (Phase 5.5 performance pass) ─────────────────
 # Set NOWCAST_DEBUG_TIMING=1 to print per-section wall times to the terminal on
 # every script rerun. Zero overhead when the flag is off. Used to measure the

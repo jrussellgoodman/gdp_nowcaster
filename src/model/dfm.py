@@ -157,7 +157,15 @@ def prepare_dfm_data(
 
     monthly_df = panel[monthly_ids].loc[start:]
     # Drop leading rows where every single monthly series is NaN
-    first_valid = monthly_df.dropna(how="all").index[0]
+    non_empty = monthly_df.dropna(how="all")
+    if non_empty.empty:
+        raise ValueError(
+            "No monthly data was loaded — every FRED series came back empty. "
+            "This almost always means FRED_API_KEY is missing or invalid. "
+            "Locally: check your .env file. On Streamlit Cloud: set FRED_API_KEY "
+            "under Manage app → Settings → Secrets, then reboot the app."
+        )
+    first_valid = non_empty.index[0]
     monthly_df  = monthly_df.loc[first_valid:]
 
     # ── Quarterly GDP — on its natural quarterly-frequency index ───────────────

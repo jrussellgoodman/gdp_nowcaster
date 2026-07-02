@@ -293,7 +293,14 @@ def build_vintage_dfm_data(
 
     # Trim to requested start, drop leading all-NaN rows
     monthly_df = monthly_df.loc[start:]
-    first_valid = monthly_df.dropna(how="all").index[0]
+    non_empty = monthly_df.dropna(how="all")
+    if non_empty.empty:
+        raise ValueError(
+            f"No monthly vintage data loaded for as_of={as_of_date} — every FRED "
+            "series came back empty. This almost always means FRED_API_KEY is "
+            "missing or invalid (check .env locally, or Streamlit Cloud Secrets)."
+        )
+    first_valid = non_empty.index[0]
     monthly_df  = monthly_df.loc[first_valid:]
 
     # Drop columns where the entire history is NaN. This happens when a series
